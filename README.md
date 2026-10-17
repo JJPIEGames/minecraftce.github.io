@@ -17,11 +17,11 @@ Open `dist/index.html` directly in a browser. The generated file includes the ga
 
 The game is published at [jjpiegames.github.io/minecraftce.github.io](https://jjpiegames.github.io/minecraftce.github.io/). GitHub Actions builds and deploys the game whenever changes are pushed to `main`.
 
-The hosted site supports singleplayer. LAN multiplayer still requires a host to run the Node.js server described below; GitHub Pages does not host that server. The host opens a saved world, pauses, and selects **Start as LAN**. Joiners open the host's network address, select **Multiplayer**, enter the four-digit code, and select **Join World** to load directly into the shared world.
+The hosted site supports singleplayer. GitHub Pages cannot host LAN rooms. For LAN play, the host runs `npm run lan`, opens `http://localhost:5173` on that computer, and creates or loads the world there before choosing **Start as LAN** from Pause. Other players on the same network open the host's printed network address, select **Multiplayer**, enter the four-digit code, and select **Join World** to load directly into the shared world.
 
 ## LAN multiplayer
 
-On the host computer, run `npm run lan`. This builds the game, starts the LAN room server, and prints the host's local network address. Allow Node.js through the local firewall if prompted. Other players on the same Wi-Fi or wired LAN should open that address in a browser, select **Multiplayer**, and enter the four-digit room code shown to the host. To open an existing singleplayer world to LAN, pause it and choose **Start as LAN**. The host must keep the server window open while playing; stopping it closes the room. Up to eight players can join.
+On the host computer, run `npm run lan`. This builds the game, starts the LAN room server, and prints the host's local network address. Open `http://localhost:5173` on the host computer, create or load the world there, pause, and choose **Start as LAN**. Allow Node.js through the local firewall if prompted. Other players on the same Wi-Fi or wired LAN should open the printed host network address in a browser, select **Multiplayer**, and enter the four-digit room code shown to the host. The host must keep the server window open while playing; stopping it closes the room. Up to eight players can join.
 
 LAN rooms share the numeric world seed, player positions, and block placement/removal. Each player keeps their own inventory, and pig behavior is simulated locally on each device.
 

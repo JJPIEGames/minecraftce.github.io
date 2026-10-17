@@ -169,7 +169,7 @@ app.innerHTML = `
           <button class="touch-button touch-inventory" id="touch-inventory" type="button" aria-label="Inventory">▦</button>
         </div>
       </div>
-      <div class="game-menu title-active" id="game-menu">
+      <div class="game-menu menu-panorama-active" id="game-menu">
         <div class="title-panorama" aria-hidden="true">
           <img class="panorama-shot" src="${panorama0Url}" alt="" />
           <img class="panorama-shot" src="${panorama1Url}" alt="" />
@@ -737,7 +737,9 @@ function updateReadout(): void {
 
 function showMenuScreen(screen: MenuScreen): void {
   activeMenuScreen = screen;
-  document.querySelector<HTMLDivElement>('#game-menu')!.classList.toggle('title-active', screen === 'title');
+  const menu = document.querySelector<HTMLDivElement>('#game-menu')!;
+  const showPanorama = screen !== 'pause' && !(screen === 'options' && optionsReturnScreen === 'pause');
+  menu.classList.toggle('menu-panorama-active', showPanorama);
   document.querySelectorAll<HTMLDivElement>('.menu-screen').forEach((element) => {
     element.hidden = element.id !== `screen-${screen}`;
   });
@@ -1316,8 +1318,12 @@ async function requestLan<T>(path: string, body: unknown): Promise<T> {
   });
   const contentType = response.headers.get('content-type') ?? '';
   if (!contentType.includes('application/json')) {
+    const isGitHubPages = location.hostname === 'github.io' || location.hostname.endsWith('.github.io');
+    const message = isGitHubPages
+      ? 'GitHub Pages cannot host LAN rooms. On the host PC run npm run lan, open http://localhost:5173, then start the world there. Joiners use the host’s printed network address.'
+      : 'This page is not connected to the LAN server. Run npm run lan on the host PC and open the game from the host’s printed network address.';
     throw new LanApiError(
-      'LAN server did not return an API response. Run npm run lan and open the game from the host computer\'s network address.',
+      message,
       response.status,
     );
   }
@@ -2757,7 +2763,10 @@ function setLanStatus(message: string): void {
 function lanErrorMessage(error: unknown): string {
   if (error instanceof LanApiError) return error.message;
   if (error instanceof TypeError) {
-    return 'Cannot reach the LAN server. Make sure npm run lan is running and open the game from the host computer\'s network address.';
+    const isGitHubPages = location.hostname === 'github.io' || location.hostname.endsWith('.github.io');
+    return isGitHubPages
+      ? 'GitHub Pages cannot host LAN rooms. On the host PC run npm run lan, open http://localhost:5173, then start the world there. Joiners use the host’s printed network address.'
+      : 'Cannot reach the LAN server. Make sure npm run lan is running and open the game from the host computer’s network address.';
   }
   return error instanceof Error ? error.message : 'Unknown LAN error';
 }

@@ -126,12 +126,13 @@ kbd { display: inline-flex; align-items: center; justify-content: center; min-wi
 .touch-inventory { position: absolute; top: -56px; right: 0; width: 48px; height: 48px; font-size: 20px; }
 .game-menu { position: absolute; z-index: 4; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; overflow-y: auto; padding: 16px; background: linear-gradient(180deg, #10151d5c, #10151d20 46%, #10151d5c); backdrop-filter: blur(2px); color: #fff; font-family: 'Minecraft Regular', sans-serif; text-align: center; animation: menu-in .28s ease-out both; }
 .game-menu[hidden] { display: none; }
-.game-menu.title-active { background: linear-gradient(180deg, #10151d35, #10151d12 44%, #10151d65); backdrop-filter: none; }
-.title-panorama { position: absolute; z-index: 0; inset: 0; overflow: hidden; background: #76a9f4; pointer-events: none; }
-.panorama-shot { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 54%; opacity: 0; animation: panorama-frame 32s linear infinite; }
-.panorama-shot:nth-child(2) { animation-delay: -8s; }
+.game-menu.menu-panorama-active { background: linear-gradient(180deg, #10151d35, #10151d12 44%, #10151d65); backdrop-filter: none; }
+.title-panorama { position: absolute; z-index: 0; inset: 0; display: none; overflow: hidden; background: #76a9f4; pointer-events: none; }
+.menu-panorama-active .title-panorama { display: block; }
+.panorama-shot { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 54%; opacity: 0; animation: panorama-frame 32s steps(1, end) infinite; }
+.panorama-shot:nth-child(2) { animation-delay: -24s; }
 .panorama-shot:nth-child(3) { animation-delay: -16s; }
-.panorama-shot:nth-child(4) { animation-delay: -24s; }
+.panorama-shot:nth-child(4) { animation-delay: -8s; }
 .menu-screen { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; width: min(440px, calc(100vw - 32px)); max-height: 100%; overflow: auto; padding: 16px 10px; }
 .menu-screen[hidden], .options-panel[hidden] { display: none; }
 .menu-title-screen { justify-content: flex-start; gap: 5px; padding-top: clamp(14px, 9vh, 78px); padding-bottom: 46px; }
@@ -208,7 +209,7 @@ button.setting-tile:hover { color: #ffff55; background-image: url('../res/button
 .scene-error:not([hidden]) { display: block; }
 @keyframes menu-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes steve-idle { 0%, 100% { translate: 0 0; } 50% { translate: 0 -5px; } }
-@keyframes panorama-frame { 0%, 18% { opacity: 1; transform: scale(1); } 30%, 100% { opacity: 0; transform: scale(1.05); } }
+@keyframes panorama-frame { 0%, 24.99% { opacity: 1; } 25%, 100% { opacity: 0; } }
 @keyframes loading-spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 620px) {
