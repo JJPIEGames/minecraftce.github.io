@@ -17,7 +17,7 @@ Open `dist/index.html` directly in a browser. The generated file includes the ga
 
 The game is published at [jjpiegames.github.io/minecraftce.github.io](https://jjpiegames.github.io/minecraftce.github.io/). GitHub Actions builds and deploys the game whenever changes are pushed to `main`.
 
-The hosted site supports singleplayer. LAN multiplayer still requires a host to run the Node.js server described below; GitHub Pages does not host that server.
+The hosted site supports singleplayer. LAN multiplayer still requires a host to run the Node.js server described below; GitHub Pages does not host that server. The host opens a saved world, pauses, and selects **Start as LAN**. Joiners open the host's network address, select **Multiplayer**, enter the four-digit code, and select **Join World** to load directly into the shared world.
 
 ## LAN multiplayer
 

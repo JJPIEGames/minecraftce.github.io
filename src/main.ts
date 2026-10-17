@@ -12,6 +12,10 @@ import grassAtlasUrl from '../res/grass_atlas.png';
 import oakTreeAtlasUrl from '../res/oak_tree_atlas.png';
 import leavesAtlasUrl from '../res/leaves_atlas.png';
 import stoneAtlasUrl from '../res/stone_atlas.png';
+import panorama0Url from '../res/1.14_panorama_0.png';
+import panorama1Url from '../res/1.14_panorama_1.png';
+import panorama2Url from '../res/1.14_panorama_2.png';
+import panorama3Url from '../res/1.14_panorama_3.png';
 import './style.css';
 
 const app = document.querySelector<HTMLDivElement>('#app');
@@ -98,6 +102,7 @@ let autosaveElapsed = 0;
 let lanSession: LanSession | undefined;
 let lanSyncElapsed = 0;
 let lanSyncInProgress = false;
+let lanJoinInProgress = false;
 let lastLanEditSequence = 0;
 const pendingLanEdits: LocalWorldEdit[] = [];
 const remotePlayers = new Map<string, RemotePlayer>();
@@ -164,7 +169,13 @@ app.innerHTML = `
           <button class="touch-button touch-inventory" id="touch-inventory" type="button" aria-label="Inventory">▦</button>
         </div>
       </div>
-      <div class="game-menu" id="game-menu">
+      <div class="game-menu title-active" id="game-menu">
+        <div class="title-panorama" aria-hidden="true">
+          <img class="panorama-shot" src="${panorama0Url}" alt="" />
+          <img class="panorama-shot" src="${panorama1Url}" alt="" />
+          <img class="panorama-shot" src="${panorama2Url}" alt="" />
+          <img class="panorama-shot" src="${panorama3Url}" alt="" />
+        </div>
         <div class="menu-screen menu-title-screen" id="screen-title">
           <div class="menu-title-art"><img class="title-logo" src="${titleLogoUrl}" alt="Minecraft CE logo" /></div>
           <button class="menu-button" id="open-worlds" type="button">Singleplayer</button>
@@ -194,8 +205,7 @@ app.innerHTML = `
         </div>
         <div class="menu-screen" id="screen-multiplayer" hidden>
           <h1 class="menu-heading">LAN Multiplayer</h1>
-          <p class="lan-help">Host and joiners must be on the same Wi-Fi network and open this game from the host computer's LAN address.</p>
-          <button class="menu-button" id="host-lan-world" type="button">Host This World</button>
+          <p class="lan-help">Host: open a world, pause, choose Start as LAN, then share its code. Joiners must open this game from the host computer's network address.</p>
           <label class="menu-field" for="lan-code-input">Four-digit join code
             <input id="lan-code-input" type="text" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="one-time-code" />
           </label>
@@ -727,9 +737,11 @@ function updateReadout(): void {
 
 function showMenuScreen(screen: MenuScreen): void {
   activeMenuScreen = screen;
+  document.querySelector<HTMLDivElement>('#game-menu')!.classList.toggle('title-active', screen === 'title');
   document.querySelectorAll<HTMLDivElement>('.menu-screen').forEach((element) => {
     element.hidden = element.id !== `screen-${screen}`;
   });
+  if (screen === 'multiplayer' && !lanSession) setLanStatus('');
   if (screen === 'pause') {
     document.querySelector('#paused-world-name')!.textContent = activeWorldName;
   }
@@ -1302,7 +1314,19 @@ async function requestLan<T>(path: string, body: unknown): Promise<T> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  const result = await response.json() as { error?: string } & T;
+  const contentType = response.headers.get('content-type') ?? '';
+  if (!contentType.includes('application/json')) {
+    throw new LanApiError(
+      'LAN server did not return an API response. Run npm run lan and open the game from the host computer\'s network address.',
+      response.status,
+    );
+  }
+  let result: { error?: string } & T;
+  try {
+    result = await response.json() as { error?: string } & T;
+  } catch (error) {
+    throw new LanApiError(`LAN server returned invalid JSON: ${error instanceof Error ? error.message : 'invalid response'}`, response.status);
+  }
   if (!response.ok) throw new LanApiError(result.error ?? `LAN server returned ${response.status}`, response.status);
   return result;
 }
@@ -1489,7 +1513,7 @@ async function synchronizeLanRoom(): Promise<void> {
   if (!lanSession || lanSyncInProgress) return;
   const session = lanSession;
   lanSyncInProgress = true;
-  const edits = pendingLanEdits.slice();
+  const edits = pendingLanEdits.slice(0, 100);
   try {
     const response = await requestLan<LanSyncResponse>('/api/lan/sync', {
       code: session.code,
@@ -2001,7 +2025,7 @@ function generateWorld(
   syncPovCamera();
   updateReadout();
   showToast('World ready');
-  setMenu(!pointerLock.isLocked && !mobilePlaying);
+  if (!lanJoinInProgress) setMenu(!pointerLock.isLocked && !mobilePlaying);
 }
 
 function createNewWorld(): void {
@@ -2730,19 +2754,21 @@ function setLanStatus(message: string): void {
   document.querySelector('#lan-status')!.textContent = message;
 }
 
+function lanErrorMessage(error: unknown): string {
+  if (error instanceof LanApiError) return error.message;
+  if (error instanceof TypeError) {
+    return 'Cannot reach the LAN server. Make sure npm run lan is running and open the game from the host computer\'s network address.';
+  }
+  return error instanceof Error ? error.message : 'Unknown LAN error';
+}
+
 async function hostLanWorld(): Promise<void> {
   if (lanSession) {
-    setLanStatus(`Already connected to LAN code ${lanSession.code}.`);
     document.querySelector('#pause-lan-status')!.textContent = `Already connected to LAN code ${lanSession.code}.`;
     return;
   }
-  const fromPauseMenu = activeMenuScreen === 'pause';
-  const buttons = [
-    document.querySelector<HTMLButtonElement>('#host-lan-world')!,
-    document.querySelector<HTMLButtonElement>('#pause-start-lan')!,
-  ];
-  buttons.forEach((button) => { button.disabled = true; });
-  setLanStatus('Starting LAN world...');
+  const button = document.querySelector<HTMLButtonElement>('#pause-start-lan')!;
+  button.disabled = true;
   document.querySelector('#pause-lan-status')!.textContent = 'Starting LAN world...';
   try {
     const response = await requestLan<{ code: string; playerId: string }>('/api/lan/host', {
@@ -2762,21 +2788,22 @@ async function hostLanWorld(): Promise<void> {
     pendingLanEdits.length = 0;
     document.querySelector<HTMLDivElement>('#lan-room-badge')!.textContent = `LAN CODE ${response.code}`;
     document.querySelector<HTMLDivElement>('#lan-room-badge')!.hidden = false;
-    setLanStatus(`Share code ${response.code} with players on your Wi-Fi.`);
     document.querySelector('#pause-lan-status')!.textContent =
-      `LAN is open. Share code ${response.code}, then choose Back to Game.`;
+      `LAN is open. Share code ${response.code} with players on your Wi-Fi. Choose Back to Game to continue.`;
     if (!worldInitialized) generateWorld(currentSeed);
-    if (!fromPauseMenu) startPlaying();
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown LAN error';
-    setLanStatus(`Could not host: ${message}. Start the game with npm run lan on the host computer.`);
+    const message = lanErrorMessage(error);
     document.querySelector('#pause-lan-status')!.textContent = `Could not start LAN: ${message}`;
   } finally {
-    buttons.forEach((button) => { button.disabled = false; });
+    button.disabled = false;
   }
 }
 
 async function joinLanWorld(): Promise<void> {
+  if (lanSession) {
+    setLanStatus(`Already connected to LAN code ${lanSession.code}.`);
+    return;
+  }
   const codeInput = document.querySelector<HTMLInputElement>('#lan-code-input')!;
   const code = codeInput.value.trim();
   if (!/^\d{4}$/.test(code)) {
@@ -2787,8 +2814,13 @@ async function joinLanWorld(): Promise<void> {
   const button = document.querySelector<HTMLButtonElement>('#join-lan-world')!;
   button.disabled = true;
   setLanStatus('Connecting to LAN world...');
+  const loading = document.querySelector<HTMLDivElement>('#world-loading')!;
+  loading.hidden = false;
+  document.querySelector('#world-loading-label')!.textContent = 'Connecting to LAN world...';
   try {
     if (activeWorldId && worldInitialized && !saveCurrentWorld()) return;
+    lanJoinInProgress = true;
+    startPlaying();
     const response = await requestLan<{
       playerId: string;
       seed: string;
@@ -2814,28 +2846,36 @@ async function joinLanWorld(): Promise<void> {
     lastLanEditSequence = 0;
     pendingLanEdits.length = 0;
     clearRemotePlayers();
-    const loading = document.querySelector<HTMLDivElement>('#world-loading')!;
-    loading.hidden = false;
     document.querySelector('#world-loading-label')!.textContent = `Joining ${response.name}...`;
-    window.requestAnimationFrame(() => {
-      try {
-        generateWorld(response.seed, true, spawn);
-        document.querySelector<HTMLDivElement>('#lan-room-badge')!.textContent = `LAN CODE ${code}`;
-        document.querySelector<HTMLDivElement>('#lan-room-badge')!.hidden = false;
-        startPlaying();
-      } catch (error) {
-        console.error('Could not join the LAN world.', error);
-        setLanStatus('The host was found, but its world could not be loaded.');
-        showToast('LAN world could not be loaded');
-        lanSession = undefined;
-      } finally {
-        loading.hidden = true;
-      }
+    await new Promise<void>((resolveFrame) => {
+      window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolveFrame()));
     });
+    generateWorld(response.seed, true, spawn);
+    document.querySelector<HTMLDivElement>('#lan-room-badge')!.textContent = `LAN CODE ${code}`;
+    document.querySelector<HTMLDivElement>('#lan-room-badge')!.hidden = false;
+    lanJoinInProgress = false;
+    setMenu(!pointerLock.isLocked && !mobilePlaying);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown LAN error';
+    console.error('Could not join the LAN world.', error);
+    const message = lanErrorMessage(error);
     setLanStatus(`Could not join: ${message}`);
+    document.querySelector<HTMLDivElement>('#lan-room-badge')!.hidden = true;
+    const joinedSession = lanSession;
+    lanSession = undefined;
+    clearRemotePlayers();
+    if (joinedSession) {
+      void requestLan('/api/lan/leave', { code: joinedSession.code, playerId: joinedSession.playerId }).catch((leaveError: unknown) => {
+        console.error('Could not leave the failed LAN join.', leaveError);
+      });
+    }
+    lanJoinInProgress = false;
+    mobilePlaying = false;
+    pressed.clear();
+    requestedMenuScreen = 'multiplayer';
+    if (pointerLock.isLocked) pointerLock.unlock();
+    else setMenu(true);
   } finally {
+    loading.hidden = true;
     button.disabled = false;
   }
 }
@@ -2847,7 +2887,6 @@ document.querySelector('#open-worlds')!.addEventListener('click', () => {
 document.querySelector('#title-options')!.addEventListener('click', showOptions);
 document.querySelector('#pause-options')!.addEventListener('click', showOptions);
 document.querySelector('#multiplayer-notice')!.addEventListener('click', () => showMenuScreen('multiplayer'));
-document.querySelector('#host-lan-world')!.addEventListener('click', () => { void hostLanWorld(); });
 document.querySelector('#pause-start-lan')!.addEventListener('click', () => { void hostLanWorld(); });
 document.querySelector('#join-lan-world')!.addEventListener('click', () => { void joinLanWorld(); });
 document.querySelector<HTMLInputElement>('#lan-code-input')!.addEventListener('input', (event) => {
