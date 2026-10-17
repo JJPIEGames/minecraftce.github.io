@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lan": "npm run build && node lan-server.mjs"
   },
   "dependencies": {
     "three": "^0.180.0"
